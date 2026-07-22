@@ -1,0 +1,315 @@
+// open-dms — data model (MISA-free, self-contained).
+// The app's OWN database is the source of truth. External ERPs (MISA, etc.)
+// are optional plugins that feed this DB via src/lib/erp adapters — never read
+// directly at request time.
+//
+// Default target is Postgres. To run WITHOUT Docker, switch the datasource
+// provider to "sqlite" and set DATABASE_URL="file:./dev.db". One caveat:
+// SQLite does not support scalar lists, so change `plannedWeekdays Int[]`
+// on RepAssignment to `plannedWeekdays String` (store "1,3,5") for SQLite.
+// SQLite also rejects the `@db.Decimal(18,2)` native attribute — remove those
+// annotations (keep the `Decimal` field type) when targeting SQLite.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // switch to "sqlite" to run without Docker (see note above)
+  url      = env("DATABASE_URL")
+}
+
+// ---------- enums ----------
+
+enum Role {
+  ADMIN
+  MANAGER
+  REP
+}
+
+enum GpsStatus {
+  OK
+  OUT_OF_RANGE
+  MISSING
+}
+
+enum VisitOutcome {
+  ORDER
+  NO_ORDER
+  CLOSED
+  REVISIT
+}
+
+enum OrderStatus {
+  DRAFT
+  SUBMITTED
+  CONFIRMED
+  DELIVERED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  OPEN
+  PARTIAL
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  E_WALLET
+}
+
+enum NotificationKind {
+  VISIT_REMINDER
+  ORDER_UPDATE
+  DEBT_ALERT
+  SYSTEM
+}
+
+// ---------- identity ----------
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  role         Role     @default(REP)
+  passwordHash String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignments       RepAssignment[]
+  visits            Visit[]
+  shifts            Shift[]
+  orders            Order[]
+  payments          Payment[]
+  notifications     Notification[]
+  pushSubscriptions PushSubscription[]
+}
+
+// ---------- master data ----------
+
+model Customer {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  name         String
+  customerType String?
+  phone        String?
+  address      String?
+  latitude     Float?
+  longitude    Float?
+  creditLimit  Decimal  @default(0) @db.Decimal(18, 2)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignments RepAssignment[]
+  visits      Visit[]
+  orders      Order[]
+  invoices    Invoice[]
+  payments    Payment[]
+}
+
+model Product {
+  id        String   @id @default(uuid())
+  sku       String   @unique
+  name      String
+  category  String?
+  unit      String   @default("cai")
+  basePrice Decimal  @default(0) @db.Decimal(18, 2)
+  stockQty  Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  priceListItems PriceListItem[]
+  orderLines     OrderLine[]
+}
+
+model PriceList {
+  id        String   @id @default(uuid())
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  items PriceListItem[]
+}
+
+model PriceListItem {
+  id          String  @id @default(uuid())
+  priceListId String
+  productId   String
+  price       Decimal @db.Decimal(18, 2)
+
+  priceList PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@unique([priceListId, productId])
+}
+
+model Promotion {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  discountPct Decimal  @default(0) @db.Decimal(5, 2)
+  startsAt    DateTime
+  endsAt      DateTime
+  active      Boolean  @default(true)
+}
+
+// ---------- field operations ----------
+
+model RepAssignment {
+  id              String   @id @default(uuid())
+  repId           String
+  customerId      String
+  plannedWeekdays Int[] // 1=Mon .. 7=Sun. For SQLite use String "1,3,5".
+  createdAt       DateTime @default(now())
+
+  rep      User     @relation(fields: [repId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([repId, customerId])
+}
+
+model Visit {
+  id         String        @id @default(uuid())
+  repId      String
+  customerId String
+  checkInAt  DateTime      @default(now())
+  checkOutAt DateTime?
+  latitude   Float?
+  longitude  Float?
+  gpsStatus  GpsStatus     @default(MISSING)
+  outcome    VisitOutcome?
+  note       String?
+  photoUrl   String?
+  createdAt  DateTime      @default(now())
+
+  rep      User     @relation(fields: [repId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+  order    Order?
+}
+
+model Shift {
+  id        String    @id @default(uuid())
+  repId     String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  startLat  Float?
+  startLng  Float?
+
+  rep User @relation(fields: [repId], references: [id])
+}
+
+// ---------- order taking ----------
+
+model Order {
+  id         String      @id @default(uuid())
+  code       String      @unique
+  customerId String
+  repId      String
+  visitId    String?     @unique
+  status     OrderStatus @default(DRAFT)
+  orderedAt  DateTime    @default(now())
+  note       String?
+  subtotal   Decimal     @default(0) @db.Decimal(18, 2)
+  discount   Decimal     @default(0) @db.Decimal(18, 2)
+  total      Decimal     @default(0) @db.Decimal(18, 2)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  customer Customer    @relation(fields: [customerId], references: [id])
+  rep      User        @relation(fields: [repId], references: [id])
+  visit    Visit?      @relation(fields: [visitId], references: [id])
+  lines    OrderLine[]
+  invoice  Invoice?
+}
+
+model OrderLine {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Decimal @db.Decimal(18, 2)
+  lineTotal Decimal @db.Decimal(18, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+// ---------- accounts receivable (self-contained, MISA-free) ----------
+
+model Invoice {
+  id         String        @id @default(uuid())
+  code       String        @unique
+  customerId String
+  orderId    String?       @unique
+  issuedAt   DateTime      @default(now())
+  dueDate    DateTime
+  amount     Decimal       @db.Decimal(18, 2)
+  paidAmount Decimal       @default(0) @db.Decimal(18, 2)
+  status     InvoiceStatus @default(OPEN)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  customer    Customer            @relation(fields: [customerId], references: [id])
+  order       Order?              @relation(fields: [orderId], references: [id])
+  allocations PaymentAllocation[]
+}
+
+model Payment {
+  id         String        @id @default(uuid())
+  code       String        @unique
+  customerId String
+  repId      String?
+  amount     Decimal       @db.Decimal(18, 2)
+  method     PaymentMethod @default(CASH)
+  receivedAt DateTime      @default(now())
+  note       String?
+  createdAt  DateTime      @default(now())
+
+  customer    Customer            @relation(fields: [customerId], references: [id])
+  rep         User?               @relation(fields: [repId], references: [id])
+  allocations PaymentAllocation[]
+}
+
+model PaymentAllocation {
+  id        String  @id @default(uuid())
+  paymentId String
+  invoiceId String
+  amount    Decimal @db.Decimal(18, 2)
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@unique([paymentId, invoiceId])
+}
+
+// ---------- notifications ----------
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  kind      NotificationKind @default(SYSTEM)
+  title     String
+  body      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
