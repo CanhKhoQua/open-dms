@@ -5,14 +5,16 @@
   "description": "Open, ERP-agnostic Distribution Management System (field sales, GPS check-in, order taking, self-contained accounts receivable).",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/set-provider.mjs && prisma generate && prisma db push --skip-generate && next build",
     "start": "next start",
     "lint": "next lint",
     "seed": "tsx prisma/seed.ts",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset",
-    "db:studio": "prisma studio"
+    "postinstall": "node scripts/set-provider.mjs && prisma generate",
+    "predev": "node scripts/set-provider.mjs && prisma generate",
+    "db:push": "node scripts/set-provider.mjs && prisma db push",
+    "db:reset": "node scripts/set-provider.mjs && prisma db push --force-reset && npm run seed",
+    "db:studio": "prisma studio",
+    "smoke": "tsx scripts/smoke-logic.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -30,5 +32,8 @@
     "prisma": "^6.2.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18.18"
   }
 }

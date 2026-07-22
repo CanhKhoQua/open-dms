@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { ageInvoices, type AgingSummary } from "@/lib/debt/aging";
 import { startOfToday, isoWeekday } from "@/lib/date";
+import { parseWeekdays } from "@/lib/weekdays";
 
 // Manager scope = company-wide. No repId filter (opposite of the rep app).
 
@@ -63,7 +64,7 @@ export async function getTeamCoverage() {
 
   return reps.map((rep) => {
     const mine = assignments.filter((a) => a.repId === rep.id);
-    const plannedToday = mine.filter((a) => a.plannedWeekdays.includes(wd));
+    const plannedToday = mine.filter((a) => parseWeekdays(a.plannedWeekdays).includes(wd));
     const visitedCustomers = new Set(
       visits.filter((v) => v.repId === rep.id).map((v) => v.customerId),
     );

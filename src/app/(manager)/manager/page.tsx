@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentManager } from "@/lib/session";
 import { getOverview, getTeamCoverage } from "@/lib/manager/queries";
 import { formatVnd } from "@/lib/money";
+import { ResetDemoButton } from "./_components/ResetDemoButton";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export default async function ManagerOverviewPage() {
   return (
     <main className="wrap">
       <h1>Tổng quan</h1>
-      <p className="tag">Xin chào, {mgr.name} — toàn công ty</p>
+      <p className="tag">Xin chào, {mgr.name} — toàn công ty · <ResetDemoButton /></p>
 
       <div className="kpis">
         {kpis.map((k) => (

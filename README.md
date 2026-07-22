@@ -61,20 +61,40 @@ So it runs greenfield out of the box, and connects to your ERP when you want it 
 - **Next.js 15** (App Router) · **React 19** · **TypeScript**
 - **Prisma** ORM · **Postgres 16** (switch `provider` to `sqlite` to run with no DB server)
 
-## Quick start
+## Quick start (zero config)
+
+Uses **SQLite by default** — no database server, no Docker.
 
 ```bash
-cp .env.example .env
-docker compose up -d          # Postgres 16
 npm install
-npm run db:migrate            # create tables
-npm run seed                  # demo data: order -> invoice -> partial payment (FIFO) -> overdue -> a GPS visit
-npm run dev                   # http://localhost:3000
+cp .env.example .env
+npm run db:push     # create the SQLite tables
+npm run seed        # demo data (multi-rep, orders, FIFO payments, aging, GPS visits)
+npm run dev         # http://localhost:3000
 ```
 
-**No Docker?** Target SQLite with three schema tweaks: set `provider = "sqlite"`, change `plannedWeekdays Int[]` to `plannedWeekdays String`, and drop the `@db.Decimal(18,2)` native annotations (keep the `Decimal` type). Then set `DATABASE_URL="file:./dev.db"` and run `npm run db:migrate && npm run seed && npm run dev`.
+Open `/rep` (field rep app) and `/manager` (console). Health: `/api/health`.
 
-Health check: `GET /api/health`.
+### Use Postgres instead
+In `.env` set `DATABASE_PROVIDER="postgresql"` and a Postgres `DATABASE_URL`, then
+`npm run db:push && npm run seed`. The **same schema** runs on both connectors —
+`scripts/set-provider.mjs` flips the Prisma provider from `DATABASE_PROVIDER`.
+
+## Deploy a live demo (Vercel + Neon, free)
+
+GitHub Pages can't host this — it needs a Node server + a database. Use Vercel for
+the app and Neon (or Vercel Postgres / Supabase) for the DB. Both have free tiers.
+
+1. Push this repo to GitHub → "Import Project" on Vercel.
+2. Create a free Postgres on Neon; copy the connection string.
+3. Vercel → Settings → Environment Variables:
+   - `DATABASE_PROVIDER = postgresql`
+   - `DATABASE_URL = <Neon connection string>`
+   - `ALLOW_DEMO_SEED = true`
+4. Deploy — the build runs `prisma db push` to create the tables on Neon.
+5. Open the site → `/manager` → **Reset demo data** (or `POST /api/seed`) to load rows.
+
+> SQLite is local-only (serverless filesystems are ephemeral), so hosted demos use Postgres.
 
 ## Project structure
 

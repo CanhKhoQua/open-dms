@@ -28,16 +28,14 @@ export default function Home() {
 
       <div className="section">
         <h3>Run it</h3>
-        <pre>{`cp .env.example .env
-docker compose up -d          # Postgres 16
-npm install
-npm run db:migrate            # create tables
-npm run seed                  # demo data (orders, invoices, FIFO, a GPS visit)
-npm run dev                   # http://localhost:3000`}</pre>
+        <pre>{`npm install
+cp .env.example .env
+npm run db:push     # SQLite tables (zero config)
+npm run seed        # demo data
+npm run dev         # http://localhost:3000`}</pre>
         <p className="tag">
-          No Docker? Set <code>provider = &quot;sqlite&quot;</code> in{" "}
-          <code>prisma/schema.prisma</code> and{" "}
-          <code>DATABASE_URL=&quot;file:./dev.db&quot;</code>.
+          SQLite by default — no server needed. Deploy a live demo on Vercel + Neon
+          by setting <code>DATABASE_PROVIDER=postgresql</code>.
         </p>
       </div>
 

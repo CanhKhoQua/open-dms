@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { ageInvoices } from "@/lib/debt/aging";
+import { parseWeekdays } from "@/lib/weekdays";
 
 // plannedWeekdays uses 1=Mon..7=Sun; JS getDay() is 0=Sun..6=Sat.
 export function isoWeekday(d: Date = new Date()): number {
@@ -50,7 +51,7 @@ export async function getTodayRoute(repId: string) {
       name: a.customer.name,
       code: a.customer.code,
       address: a.customer.address,
-      plannedToday: a.plannedWeekdays.includes(wd),
+      plannedToday: parseWeekdays(a.plannedWeekdays).includes(wd),
       outstanding: outstandingOf(a.customer.invoices),
       creditLimit: Number(a.customer.creditLimit),
       visitedToday: last ? isSameDay(new Date(last.checkInAt), today) : false,
@@ -92,7 +93,7 @@ export async function getRepCustomer(repId: string, customerId: string) {
     })),
   );
 
-  return { customer, aging: { rows, summary }, plannedWeekdays: assignment.plannedWeekdays };
+  return { customer, aging: { rows, summary }, plannedWeekdays: parseWeekdays(assignment.plannedWeekdays) };
 }
 
 // This rep's visit history.
