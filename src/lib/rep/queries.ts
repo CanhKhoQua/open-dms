@@ -128,3 +128,21 @@ export async function hasOpenShift(repId: string) {
   });
   return shift;
 }
+
+// Full customer book for this rep, name-sorted (scope: RepAssignment).
+export async function getRepCustomers(repId: string) {
+  const assignments = await prisma.repAssignment.findMany({
+    where: { repId },
+    include: { customer: { include: { invoices: true } } },
+    orderBy: { customer: { name: "asc" } },
+  });
+  return assignments.map((a) => ({
+    customerId: a.customerId,
+    name: a.customer.name,
+    code: a.customer.code,
+    address: a.customer.address,
+    customerType: a.customer.customerType,
+    outstanding: outstandingOf(a.customer.invoices),
+    creditLimit: Number(a.customer.creditLimit),
+  }));
+}

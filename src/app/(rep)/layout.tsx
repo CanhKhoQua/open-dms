@@ -1,18 +1,6 @@
-import Link from "next/link";
+import type { ReactNode } from "react";
+import { RepShell } from "./_components/RepShell";
 
-export default function RepLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rep-shell">
-      <header className="rep-header">
-        <Link href="/rep" className="brand">
-          open-dms · Rep
-        </Link>
-        <nav>
-          <Link href="/rep">Tuyến</Link>
-          <Link href="/rep/history">Lịch sử</Link>
-        </nav>
-      </header>
-      <div className="rep-body">{children}</div>
-    </div>
-  );
+export default function RepLayout({ children }: { children: ReactNode }) {
+  return <RepShell>{children}</RepShell>;
 }

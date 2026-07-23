@@ -1,20 +1,10 @@
-import Link from "next/link";
+import type { ReactNode } from "react";
+import { getCurrentManager } from "@/lib/session";
+import { ManagerShell } from "./_components/ManagerShell";
 
-export default function ManagerLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rep-shell">
-      <header className="rep-header">
-        <Link href="/manager" className="brand">
-          open-dms · Manager
-        </Link>
-        <nav>
-          <Link href="/manager">Tổng quan</Link>
-          <Link href="/manager/debt">Công nợ</Link>
-          <Link href="/manager/team">Đội ngũ</Link>
-          <Link href="/manager/visits">Ghé thăm</Link>
-        </nav>
-      </header>
-      <div className="mgr-body">{children}</div>
-    </div>
-  );
+export const dynamic = "force-dynamic";
+
+export default async function ManagerLayout({ children }: { children: ReactNode }) {
+  const mgr = await getCurrentManager().catch(() => null);
+  return <ManagerShell managerName={mgr?.name ?? "Manager"}>{children}</ManagerShell>;
 }

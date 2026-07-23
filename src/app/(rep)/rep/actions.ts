@@ -11,7 +11,7 @@ async function assertOwned(repId: string, customerId: string) {
   const link = await prisma.repAssignment.findUnique({
     where: { repId_customerId: { repId, customerId } },
   });
-  if (!link) throw new Error("Khach hang khong thuoc pham vi cua ban.");
+  if (!link) throw new Error("This customer is not in your assigned book.");
 }
 
 function invoiceStatus(amount: number, paid: number, dueDate: Date) {
@@ -97,7 +97,7 @@ export async function createOrder(input: {
   await assertOwned(rep.id, input.customerId);
 
   const cleanLines = input.lines.filter((l) => l.quantity > 0);
-  if (cleanLines.length === 0) throw new Error("Don hang chua co dong nao.");
+  if (cleanLines.length === 0) throw new Error("The order has no line items.");
 
   const products = await prisma.product.findMany({
     where: { id: { in: cleanLines.map((l) => l.productId) } },
@@ -155,7 +155,7 @@ export async function collectPayment(input: {
 }) {
   const rep = await getCurrentRep();
   await assertOwned(rep.id, input.customerId);
-  if (input.amount <= 0) throw new Error("So tien phai lon hon 0.");
+  if (input.amount <= 0) throw new Error("Amount must be greater than 0.");
 
   const invoices = await prisma.invoice.findMany({
     where: { customerId: input.customerId, status: { notIn: ["PAID", "VOID"] } },

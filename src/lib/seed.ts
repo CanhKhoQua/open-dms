@@ -35,38 +35,38 @@ export async function runSeed(prisma: PrismaClient) {
   await prisma.user.deleteMany();
 
   await prisma.user.create({ data: { email: "admin@open-dms.local", name: "Admin", role: "ADMIN" } });
-  const manager = await prisma.user.create({ data: { email: "manager@open-dms.local", name: "Quan Ly Vung", role: "MANAGER" } });
+  const manager = await prisma.user.create({ data: { email: "manager@open-dms.local", name: "Susan Brooks", role: "MANAGER" } });
   const reps = [];
   for (const r of [
-    { email: "an@open-dms.local", name: "Nguyen Van An" },
-    { email: "binh@open-dms.local", name: "Tran Thi Binh" },
-    { email: "cuong@open-dms.local", name: "Le Van Cuong" },
+    { email: "james@open-dms.local", name: "James Carter" },
+    { email: "maria@open-dms.local", name: "Maria Lopez" },
+    { email: "david@open-dms.local", name: "David Kim" },
   ]) {
     reps.push(await prisma.user.create({ data: { ...r, role: "REP" } }));
   }
 
   const productSpecs = [
-    { sku: "SP-COLA-330", name: "Nuoc ngot Cola 330ml", category: "BEVERAGE", unit: "lon", basePrice: 9000, stockQty: 5000 },
-    { sku: "SP-MILK-1L", name: "Sua tuoi 1L", category: "DAIRY", unit: "hop", basePrice: 32000, stockQty: 800 },
-    { sku: "SP-WATER-500", name: "Nuoc suoi 500ml", category: "BEVERAGE", unit: "chai", basePrice: 5000, stockQty: 9000 },
-    { sku: "SP-SNACK-100", name: "Snack khoai tay 100g", category: "SNACK", unit: "goi", basePrice: 15000, stockQty: 1200 },
+    { sku: "SP-COLA-330", name: "Cola 330ml", category: "BEVERAGE", unit: "can", basePrice: 0.4, stockQty: 5000 },
+    { sku: "SP-MILK-1L", name: "Fresh Milk 1L", category: "DAIRY", unit: "carton", basePrice: 1.3, stockQty: 800 },
+    { sku: "SP-WATER-500", name: "Spring Water 500ml", category: "BEVERAGE", unit: "bottle", basePrice: 0.2, stockQty: 9000 },
+    { sku: "SP-SNACK-100", name: "Potato Chips 100g", category: "SNACK", unit: "pack", basePrice: 0.65, stockQty: 1200 },
   ];
   const products = [];
   for (const p of productSpecs) products.push(await prisma.product.create({ data: p }));
   const priceOf = new Map(productSpecs.map((p) => [p.sku, p.basePrice]));
 
-  const priceList = await prisma.priceList.create({ data: { name: "Bang gia chuan" } });
+  const priceList = await prisma.priceList.create({ data: { name: "Standard price list" } });
   await prisma.priceListItem.createMany({
     data: products.map((p) => ({ priceListId: priceList.id, productId: p.id, price: p.basePrice })),
   });
 
   const custSpecs = [
-    { code: "KH001", name: "Tap hoa Ba Nam", type: "RETAIL", lat: 10.7769, lng: 106.7009, limit: 20000000, rep: 0, wd: [1, 2, 3, 4, 5, 6, 7] },
-    { code: "KH002", name: "Sieu thi Mini Anh Tuan", type: "WHOLESALE", lat: 10.7872, lng: 106.6969, limit: 50000000, rep: 0, wd: [1, 3, 5] },
-    { code: "KH003", name: "Quan ca phe Goc Pho", type: "RETAIL", lat: 10.77, lng: 106.705, limit: 10000000, rep: 0, wd: [1, 2, 3, 4, 5, 6, 7] },
-    { code: "KH004", name: "Cua hang Tien Loi 24h", type: "RETAIL", lat: 10.762, lng: 106.682, limit: 15000000, rep: 1, wd: [1, 2, 3, 4, 5, 6, 7] },
-    { code: "KH005", name: "Dai ly Phuong Nam", type: "WHOLESALE", lat: 10.8, lng: 106.65, limit: 80000000, rep: 1, wd: [2, 4, 6] },
-    { code: "KH006", name: "Nha hang Bien Xanh", type: "KEY_ACCOUNT", lat: 10.79, lng: 106.72, limit: 60000000, rep: 2, wd: [1, 2, 3, 4, 5, 6, 7] },
+    { code: "C001", name: "Bay Street Grocery", type: "RETAIL", lat: 10.7769, lng: 106.7009, limit: 20000, rep: 0, wd: [1, 2, 3, 4, 5, 6, 7] },
+    { code: "C002", name: "Corner Mini Mart", type: "WHOLESALE", lat: 10.7872, lng: 106.6969, limit: 50000, rep: 0, wd: [1, 3, 5] },
+    { code: "C003", name: "Old Town Coffee", type: "RETAIL", lat: 10.77, lng: 106.705, limit: 10000, rep: 0, wd: [1, 2, 3, 4, 5, 6, 7] },
+    { code: "C004", name: "24h Convenience", type: "RETAIL", lat: 10.762, lng: 106.682, limit: 15000, rep: 1, wd: [1, 2, 3, 4, 5, 6, 7] },
+    { code: "C005", name: "Southgate Distributors", type: "WHOLESALE", lat: 10.8, lng: 106.65, limit: 80000, rep: 1, wd: [2, 4, 6] },
+    { code: "C006", name: "Blue Ocean Restaurant", type: "KEY_ACCOUNT", lat: 10.79, lng: 106.72, limit: 60000, rep: 2, wd: [1, 2, 3, 4, 5, 6, 7] },
   ];
   const customers: Record<string, { id: string; lat: number; lng: number; rep: string }> = {};
   for (const c of custSpecs) {
@@ -80,12 +80,12 @@ export async function runSeed(prisma: PrismaClient) {
   await prisma.shift.create({ data: { repId: reps[0].id, startedAt: daysAgo(0) } });
 
   const invSpecs: [string, number, number, number][] = [
-    ["KH001", 75, -45, 10000000],
-    ["KH001", 20, 10, 5000000],
-    ["KH002", 100, -70, 24000000],
-    ["KH003", 40, -10, 3000000],
-    ["KH005", 15, 15, 40000000],
-    ["KH006", 90, -60, 18000000],
+    ["C001", 75, -45, 10000],
+    ["C001", 20, 10, 5000],
+    ["C002", 100, -70, 24000],
+    ["C003", 40, -10, 3000],
+    ["C005", 15, 15, 40000],
+    ["C006", 90, -60, 18000],
   ];
   let invSeq = 0;
   const invByCustomer: Record<string, { id: string; issuedAt: Date; dueDate: Date; amount: number }[]> = {};
@@ -105,15 +105,15 @@ export async function runSeed(prisma: PrismaClient) {
     (invByCustomer[code] ||= []).push({ id: inv.id, issuedAt: inv.issuedAt, dueDate, amount });
   }
 
-  const kh1Invoices = invByCustomer["KH001"];
-  const paymentAmount = 6000000;
+  const c1Invoices = invByCustomer["C001"];
+  const paymentAmount = 6000;
   const payment = await prisma.payment.create({
-    data: { code: "PAY-001", customerId: customers["KH001"].id, repId: customers["KH001"].rep, amount: paymentAmount, method: "CASH", receivedAt: daysAgo(0) },
+    data: { code: "PAY-001", customerId: customers["C001"].id, repId: customers["C001"].rep, amount: paymentAmount, method: "CASH", receivedAt: daysAgo(0) },
   });
-  const fifo = allocateFifo(paymentAmount, kh1Invoices.map((i) => ({ id: i.id, issuedAt: i.issuedAt, outstanding: i.amount })));
+  const fifo = allocateFifo(paymentAmount, c1Invoices.map((i) => ({ id: i.id, issuedAt: i.issuedAt, outstanding: i.amount })));
   for (const alloc of fifo.allocations) {
     await prisma.paymentAllocation.create({ data: { paymentId: payment.id, invoiceId: alloc.invoiceId, amount: alloc.amount } });
-    const inv = kh1Invoices.find((i) => i.id === alloc.invoiceId)!;
+    const inv = c1Invoices.find((i) => i.id === alloc.invoiceId)!;
     await prisma.invoice.update({
       where: { id: alloc.invoiceId },
       data: { paidAmount: round2(alloc.amount), status: invoiceStatus(inv.amount, alloc.amount, inv.dueDate) },
@@ -123,8 +123,8 @@ export async function runSeed(prisma: PrismaClient) {
   await prisma.order.create({
     data: {
       code: "ORD-001",
-      customerId: customers["KH004"].id,
-      repId: customers["KH004"].rep,
+      customerId: customers["C004"].id,
+      repId: customers["C004"].rep,
       status: "SUBMITTED",
       orderedAt: daysAgo(0),
       subtotal: priceOf.get("SP-COLA-330")! * 200 + priceOf.get("SP-WATER-500")! * 100,
@@ -139,12 +139,12 @@ export async function runSeed(prisma: PrismaClient) {
   });
 
   const visitSpecs: { code: string; days: number; gps: "OK" | "OUT_OF_RANGE" | "MISSING"; outcome?: "ORDER" | "NO_ORDER" }[] = [
-    { code: "KH001", days: 0, gps: "OK", outcome: "ORDER" },
-    { code: "KH003", days: 0, gps: "OUT_OF_RANGE", outcome: "NO_ORDER" },
-    { code: "KH004", days: 0, gps: "OK", outcome: "ORDER" },
-    { code: "KH006", days: 0, gps: "MISSING", outcome: "NO_ORDER" },
-    { code: "KH002", days: 2, gps: "OK", outcome: "ORDER" },
-    { code: "KH005", days: 3, gps: "OK", outcome: "NO_ORDER" },
+    { code: "C001", days: 0, gps: "OK", outcome: "ORDER" },
+    { code: "C003", days: 0, gps: "OUT_OF_RANGE", outcome: "NO_ORDER" },
+    { code: "C004", days: 0, gps: "OK", outcome: "ORDER" },
+    { code: "C006", days: 0, gps: "MISSING", outcome: "NO_ORDER" },
+    { code: "C002", days: 2, gps: "OK", outcome: "ORDER" },
+    { code: "C005", days: 3, gps: "OK", outcome: "NO_ORDER" },
   ];
   for (const v of visitSpecs) {
     const c = customers[v.code];
@@ -163,7 +163,7 @@ export async function runSeed(prisma: PrismaClient) {
   }
 
   await prisma.notification.create({
-    data: { userId: manager.id, kind: "DEBT_ALERT", title: "Cong no qua han cao", body: "Nhieu khach qua han 60+." },
+    data: { userId: manager.id, kind: "DEBT_ALERT", title: "High overdue receivables", body: "Several customers are 60+ days overdue." },
   });
 
   const custCount = await prisma.customer.count();
