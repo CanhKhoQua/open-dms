@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getOverview, getTeamCoverage } from "@/lib/manager/queries";
+import { getOverview, getTeamCoverage, getSalesTrend } from "@/lib/manager/queries";
 import { formatMoney } from "@/lib/money";
 import { ResetDemoButton } from "./_components/ResetDemoButton";
 
@@ -12,18 +12,26 @@ const AGING: { key: "current" | "d1_30" | "d31_60" | "d60_plus"; label: string }
   { key: "d60_plus", label: "60+d" },
 ];
 
-export default async function ManagerOverviewPage() {
-  const [ov, team] = await Promise.all([getOverview(), getTeamCoverage()]);
+// compact money for chart axis ($1.2k / $840)
+function compactMoney(n: number): string {
+  if (n >= 1000) return `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  return `$${Math.round(n)}`;
+}
 
-  const kpis: { label: string; value: string | number }[] = [
-    { label: "Active customers", value: ov.customerCount },
-    { label: "Reps", value: ov.repCount },
-    { label: "Visits today", value: ov.todayVisits },
-    { label: "Orders today", value: `${ov.todayOrderCount} · ${formatMoney(ov.todayOrderValue)}` },
-    { label: "Collected today", value: formatMoney(ov.todayCollected) },
-    { label: "Receivables", value: formatMoney(ov.ar.total) },
-    { label: "Overdue", value: formatMoney(ov.overdue) },
+export default async function ManagerOverviewPage() {
+  const [ov, team, trend] = await Promise.all([getOverview(), getTeamCoverage(), getSalesTrend(14)]);
+
+  const kpis: { label: string; value: string | number; accent: string }[] = [
+    { label: "Active customers", value: ov.customerCount, accent: "var(--tnm-teal-600)" },
+    { label: "Reps", value: ov.repCount, accent: "var(--tnm-teal-600)" },
+    { label: "Visits today", value: ov.todayVisits, accent: "#2563eb" },
+    { label: "Orders today", value: `${ov.todayOrderCount} · ${formatMoney(ov.todayOrderValue)}`, accent: "var(--tnm-teal-600)" },
+    { label: "Collected today", value: formatMoney(ov.todayCollected), accent: "#10b981" },
+    { label: "Receivables", value: formatMoney(ov.ar.total), accent: "var(--debt-1-30)" },
+    { label: "Overdue", value: formatMoney(ov.overdue), accent: "var(--debt-60)" },
   ];
+
+  const chartMax = Math.max(1, ...trend.map((d) => Math.max(d.orders, d.collected)));
 
   return (
     <div className="px-6 py-6 max-w-[1100px]">
@@ -35,15 +43,50 @@ export default async function ManagerOverviewPage() {
         {kpis.map((k) => (
           <div
             key={k.label}
-            className="flex flex-col gap-1 rounded-[14px] bg-white border border-gray-100 px-4 py-3.5"
+            className="flex flex-col gap-1 rounded-[14px] bg-white border border-gray-100 border-l-4 px-4 py-3.5"
+            style={{ borderLeftColor: k.accent }}
           >
             <span className="text-[11.5px] text-gray-400">{k.label}</span>
-            <strong className="text-[18px] font-bold tracking-tight text-gray-900">
-              {k.value}
-            </strong>
+            <strong className="text-[18px] font-bold tracking-tight text-gray-900">{k.value}</strong>
           </div>
         ))}
       </div>
+
+      <section className="mt-5 rounded-[14px] bg-white border border-gray-100 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[13px] font-semibold text-gray-900">Last 14 days</h2>
+          <div className="flex items-center gap-4 text-[11.5px] text-gray-500">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "var(--tnm-teal-600)" }} /> Orders
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm" style={{ background: "#10b981" }} /> Collected
+            </span>
+          </div>
+        </div>
+        <div className="flex items-end gap-1.5 h-[140px]">
+          {trend.map((d, i) => (
+            <div key={d.key} className="group relative flex-1 flex flex-col items-center justify-end gap-1 h-full">
+              <div className="flex items-end gap-[3px] w-full justify-center h-full">
+                <div
+                  className="w-[42%] max-w-[14px] rounded-t-[3px]"
+                  style={{ height: `${(d.orders / chartMax) * 100}%`, background: "var(--tnm-teal-600)", minHeight: d.orders > 0 ? 2 : 0 }}
+                />
+                <div
+                  className="w-[42%] max-w-[14px] rounded-t-[3px]"
+                  style={{ height: `${(d.collected / chartMax) * 100}%`, background: "#10b981", minHeight: d.collected > 0 ? 2 : 0 }}
+                />
+              </div>
+              <span className={`text-[9px] text-gray-400 ${i % 2 === 0 ? "" : "opacity-0"}`}>{d.label}</span>
+              <div className="pointer-events-none absolute bottom-full mb-1 hidden group-hover:block whitespace-nowrap rounded-md bg-gray-900 text-white text-[10.5px] px-2 py-1 z-10">
+                <div className="font-semibold">{d.label}</div>
+                <div>Orders {compactMoney(d.orders)}</div>
+                <div>Collected {compactMoney(d.collected)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="mt-5 rounded-[14px] bg-white border border-gray-100 p-5">
         <h2 className="text-[13px] font-semibold text-gray-900 mb-3">Aging (company-wide)</h2>

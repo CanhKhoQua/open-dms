@@ -196,6 +196,42 @@ export async function getRepDirectory() {
   }));
 }
 
+// Daily order value vs. collected for the last `days` days (dashboard trend).
+export async function getSalesTrend(days = 14) {
+  const start = startOfToday();
+  start.setDate(start.getDate() - (days - 1));
+
+  const [orders, payments] = await Promise.all([
+    prisma.order.findMany({ where: { orderedAt: { gte: start } }, select: { orderedAt: true, total: true } }),
+    prisma.payment.findMany({ where: { receivedAt: { gte: start } }, select: { receivedAt: true, amount: true } }),
+  ]);
+
+  const fmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+  const buckets: { key: string; label: string; orders: number; collected: number }[] = [];
+  const index = new Map<string, number>();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    index.set(key, buckets.length);
+    buckets.push({ key, label: fmt.format(d), orders: 0, collected: 0 });
+  }
+  const keyOf = (d: Date) => {
+    const local = new Date(d);
+    local.setHours(0, 0, 0, 0);
+    return local.toISOString().slice(0, 10);
+  };
+  for (const o of orders) {
+    const i = index.get(keyOf(new Date(o.orderedAt)));
+    if (i != null) buckets[i].orders += Number(o.total);
+  }
+  for (const p of payments) {
+    const i = index.get(keyOf(new Date(p.receivedAt)));
+    if (i != null) buckets[i].collected += Number(p.amount);
+  }
+  return buckets;
+}
+
 // One rep: assigned customers, recent visits, recent orders.
 export async function getRepDetail(repId: string) {
   const rep = await prisma.user.findUnique({ where: { id: repId } });
