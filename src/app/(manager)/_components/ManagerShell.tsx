@@ -11,9 +11,9 @@ import {
   Users,
   CreditCard,
   MapPin,
-  Bell,
   type LucideIcon,
 } from "lucide-react";
+import { NotificationsBell } from "./NotificationsBell";
 
 type ManagerHref =
   | "/manager"
@@ -115,18 +115,7 @@ export function ManagerShell({ managerName, unreadCount = 0, children }: Manager
             {meta.subtitle && <div className="text-[11px] text-gray-400 mt-0.5">{meta.subtitle}</div>}
           </div>
           <div className="flex items-center gap-2 ml-auto shrink-0">
-            <Link
-              href="/manager/notifications"
-              className="relative w-9 h-9 rounded-[10px] flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
-              aria-label="Notifications"
-            >
-              <Bell size={18} strokeWidth={1.8} />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-tnm-red-500 text-white text-[9px] font-bold inline-flex items-center justify-center">
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </span>
-              )}
-            </Link>
+            <NotificationsBell initialUnread={unreadCount} />
             <div className="w-9 h-9 rounded-[10px] flex items-center justify-center bg-gray-100 text-gray-700 font-bold text-[13px] select-none">
               {initials}
             </div>

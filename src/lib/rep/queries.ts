@@ -106,6 +106,15 @@ export async function getRepVisits(repId: string, take = 50) {
   });
 }
 
+// One visit, only if it belongs to this rep (scope enforced).
+export async function getRepVisit(repId: string, visitId: string) {
+  const visit = await prisma.visit.findFirst({
+    where: { id: visitId, repId },
+    include: { customer: true },
+  });
+  return visit;
+}
+
 // Active products for order taking (base price; a price list could override).
 export async function getActiveProducts() {
   const products = await prisma.product.findMany({

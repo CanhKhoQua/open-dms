@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { getCurrentRep } from "@/lib/session";
 import { getRepVisits } from "@/lib/rep/queries";
 
@@ -33,9 +35,10 @@ export default async function RepHistoryPage() {
         {visits.map((v) => {
           const gps = GPS_META[v.gpsStatus] ?? GPS_META.MISSING;
           return (
-            <div
+            <Link
               key={v.id}
-              className="flex items-center gap-3 rounded-[14px] bg-white border border-gray-100 px-4 py-3"
+              href={`/rep/history/${v.id}`}
+              className="flex items-center gap-3 rounded-[14px] bg-white border border-gray-100 px-4 py-3 active:bg-gray-50 transition-colors"
             >
               <div className="flex-1 min-w-0">
                 <span className="text-[14px] font-semibold text-gray-900 truncate block">
@@ -51,7 +54,8 @@ export default async function RepHistoryPage() {
               >
                 {gps.label}
               </span>
-            </div>
+              <ChevronRight size={18} className="text-gray-300 shrink-0" aria-hidden="true" />
+            </Link>
           );
         })}
         {visits.length === 0 && (
