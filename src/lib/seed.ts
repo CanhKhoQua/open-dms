@@ -165,6 +165,14 @@ export async function runSeed(prisma: PrismaClient) {
   await prisma.notification.create({
     data: { userId: manager.id, kind: "DEBT_ALERT", title: "High overdue receivables", body: "Several customers are 60+ days overdue." },
   });
+  for (const rep of reps) {
+    await prisma.notification.create({
+      data: { userId: rep.id, kind: "VISIT_REMINDER", title: "Today's route is ready", body: "You have customers planned for today." },
+    });
+  }
+  await prisma.notification.create({
+    data: { userId: reps[1].id, kind: "ORDER_UPDATE", title: "Order ORD-001 submitted", body: "New order for 24h Convenience." },
+  });
 
   const custCount = await prisma.customer.count();
   return { reps: reps.length, customers: custCount, invoices: invSeq, fifoRemaining: fifo.remaining };

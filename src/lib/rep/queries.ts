@@ -146,3 +146,60 @@ export async function getRepCustomers(repId: string) {
     creditLimit: Number(a.customer.creditLimit),
   }));
 }
+
+// Customers with coordinates for this rep's map (scope: RepAssignment).
+export async function getRepMapPoints(repId: string) {
+  const today = new Date();
+  const assignments = await prisma.repAssignment.findMany({
+    where: { repId },
+    include: {
+      customer: {
+        include: {
+          invoices: true,
+          visits: { where: { repId }, orderBy: { checkInAt: "desc" }, take: 1 },
+        },
+      },
+    },
+  });
+  return assignments
+    .filter((a) => a.customer.latitude != null && a.customer.longitude != null)
+    .map((a) => {
+      const last = a.customer.visits[0];
+      const visitedToday = last ? isSameDay(new Date(last.checkInAt), today) : false;
+      const outstanding = outstandingOf(a.customer.invoices);
+      const status: "visited" | "debt" | "default" = visitedToday
+        ? "visited"
+        : outstanding > 0
+          ? "debt"
+          : "default";
+      return {
+        id: a.customerId,
+        name: a.customer.name,
+        code: a.customer.code,
+        lat: a.customer.latitude as number,
+        lng: a.customer.longitude as number,
+        outstanding,
+        status,
+      };
+    });
+}
+
+// Today's stats for the rep profile screen.
+export async function getRepProfile(repId: string) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const [assigned, todayVisits, todayOrders, todayPayments, shift] = await Promise.all([
+    prisma.repAssignment.count({ where: { repId } }),
+    prisma.visit.count({ where: { repId, checkInAt: { gte: start } } }),
+    prisma.order.findMany({ where: { repId, orderedAt: { gte: start } }, select: { total: true } }),
+    prisma.payment.findMany({ where: { repId, receivedAt: { gte: start } }, select: { amount: true } }),
+    prisma.shift.findFirst({ where: { repId, endedAt: null } }),
+  ]);
+  return {
+    assigned,
+    todayVisits,
+    todayOrders: todayOrders.length,
+    todayCollected: todayPayments.reduce((s, p) => s + Number(p.amount), 0),
+    onShift: Boolean(shift),
+  };
+}

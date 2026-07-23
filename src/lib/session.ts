@@ -13,10 +13,16 @@ export async function getCurrentRep() {
 }
 
 export async function getCurrentManager() {
-  const mgr = await prisma.user.findFirst({
-    where: { role: { in: ["MANAGER", "ADMIN"] }, active: true },
-    orderBy: { createdAt: "asc" },
-  });
+  // Prefer a MANAGER; fall back to ADMIN only if no manager exists.
+  const mgr =
+    (await prisma.user.findFirst({
+      where: { role: "MANAGER", active: true },
+      orderBy: { createdAt: "asc" },
+    })) ??
+    (await prisma.user.findFirst({
+      where: { role: "ADMIN", active: true },
+      orderBy: { createdAt: "asc" },
+    }));
   if (!mgr) throw new Error("No MANAGER user found. Run `npm run seed` first.");
   return mgr;
 }

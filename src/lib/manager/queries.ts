@@ -122,3 +122,88 @@ export async function getAllRecentVisits(take = 50) {
     include: { customer: true, rep: true },
   });
 }
+
+// All customers with coordinates, company-wide, for the manager map.
+export async function getAllMapPoints() {
+  const today = startOfToday();
+  const customers = await prisma.customer.findMany({
+    where: { active: true },
+    include: {
+      invoices: { where: { status: { notIn: ["PAID", "VOID"] } }, select: { amount: true, paidAmount: true } },
+      visits: { where: { checkInAt: { gte: today } }, select: { id: true }, take: 1 },
+      assignments: { include: { rep: true }, take: 1 },
+    },
+  });
+  return customers
+    .filter((c) => c.latitude != null && c.longitude != null)
+    .map((c) => {
+      const outstanding = c.invoices.reduce((s, i) => s + (Number(i.amount) - Number(i.paidAmount)), 0);
+      const visitedToday = c.visits.length > 0;
+      const status: "visited" | "debt" | "default" = visitedToday
+        ? "visited"
+        : outstanding > 0
+          ? "debt"
+          : "default";
+      return {
+        id: c.id,
+        name: c.name,
+        code: c.code,
+        lat: c.latitude as number,
+        lng: c.longitude as number,
+        outstanding,
+        status,
+        repName: c.assignments[0]?.rep.name,
+      };
+    });
+}
+
+// Company-wide customer directory.
+export async function getAllCustomers() {
+  const customers = await prisma.customer.findMany({
+    where: { active: true },
+    orderBy: { name: "asc" },
+    include: {
+      invoices: { where: { status: { notIn: ["PAID", "VOID"] } }, select: { amount: true, paidAmount: true } },
+      assignments: { include: { rep: true }, take: 1 },
+    },
+  });
+  return customers.map((c) => ({
+    id: c.id,
+    code: c.code,
+    name: c.name,
+    customerType: c.customerType,
+    phone: c.phone,
+    address: c.address,
+    creditLimit: Number(c.creditLimit),
+    outstanding: c.invoices.reduce((s, i) => s + (Number(i.amount) - Number(i.paidAmount)), 0),
+    repName: c.assignments[0]?.rep.name ?? null,
+  }));
+}
+
+// Rep directory (accounts + assignment counts).
+export async function getRepDirectory() {
+  const reps = await prisma.user.findMany({
+    where: { role: "REP" },
+    orderBy: { name: "asc" },
+    include: { _count: { select: { assignments: true } } },
+  });
+  return reps.map((r) => ({
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    active: r.active,
+    assigned: r._count.assignments,
+  }));
+}
+
+// One rep: assigned customers, recent visits, recent orders.
+export async function getRepDetail(repId: string) {
+  const rep = await prisma.user.findUnique({ where: { id: repId } });
+  if (!rep) return null;
+  const [assignments, recentVisits, recentOrders] = await Promise.all([
+    prisma.repAssignment.findMany({ where: { repId }, include: { customer: true }, orderBy: { customer: { name: "asc" } } }),
+    prisma.visit.findMany({ where: { repId }, orderBy: { checkInAt: "desc" }, take: 10, include: { customer: true } }),
+    prisma.order.findMany({ where: { repId }, orderBy: { orderedAt: "desc" }, take: 10, include: { customer: true } }),
+  ]);
+  return { rep, customers: assignments.map((a) => a.customer), recentVisits, recentOrders };
+}
