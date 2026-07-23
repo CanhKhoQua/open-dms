@@ -9,7 +9,7 @@ export default async function ManagerMapPage() {
     <div className="flex flex-col h-[calc(100vh-60px)]">
       <MapLegend />
       <div className="flex-1 min-h-0">
-        <MapPanel points={points} />
+        <MapPanel points={points} hrefBase="/manager/customers" />
       </div>
     </div>
   );

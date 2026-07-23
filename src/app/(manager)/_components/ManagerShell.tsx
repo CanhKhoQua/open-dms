@@ -14,6 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { NotificationsBell } from "./NotificationsBell";
+import { GlobalSearch } from "./GlobalSearch";
 
 type ManagerHref =
   | "/manager"
@@ -115,6 +116,7 @@ export function ManagerShell({ managerName, unreadCount = 0, children }: Manager
             {meta.subtitle && <div className="text-[11px] text-gray-400 mt-0.5">{meta.subtitle}</div>}
           </div>
           <div className="flex items-center gap-2 ml-auto shrink-0">
+            <GlobalSearch />
             <NotificationsBell initialUnread={unreadCount} />
             <div className="w-9 h-9 rounded-[10px] flex items-center justify-center bg-gray-100 text-gray-700 font-bold text-[13px] select-none">
               {initials}

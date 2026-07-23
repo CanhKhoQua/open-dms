@@ -232,6 +232,60 @@ export async function getSalesTrend(days = 14) {
   return buckets;
 }
 
+// One customer, company-wide (manager scope): aging, orders, visits, owning rep.
+export async function getManagerCustomer(customerId: string) {
+  const customer = await prisma.customer.findUnique({
+    where: { id: customerId },
+    include: {
+      invoices: { orderBy: { issuedAt: "asc" } },
+      orders: { orderBy: { orderedAt: "desc" }, take: 8, include: { rep: true } },
+      visits: { orderBy: { checkInAt: "desc" }, take: 8, include: { rep: true } },
+      assignments: { include: { rep: true }, take: 1 },
+    },
+  });
+  if (!customer) return null;
+
+  const { rows, summary } = ageInvoices(toAgingInput(customer.invoices));
+  const overdue = summary.d1_30 + summary.d31_60 + summary.d60_plus;
+  const creditLimit = Number(customer.creditLimit);
+
+  return {
+    customer,
+    rep: customer.assignments[0]?.rep ?? null,
+    aging: { rows, summary },
+    overdue,
+    creditLimit,
+    overLimit: creditLimit > 0 && summary.total > creditLimit,
+  };
+}
+
+// Company-wide fuzzy search over customers and reps (for the ⌘K palette).
+export async function searchAll(query: string) {
+  const q = query.trim();
+  if (!q) return { customers: [], reps: [] };
+  const [customers, reps] = await Promise.all([
+    prisma.customer.findMany({
+      where: {
+        active: true,
+        OR: [{ name: { contains: q } }, { code: { contains: q } }],
+      },
+      orderBy: { name: "asc" },
+      take: 6,
+      select: { id: true, name: true, code: true, customerType: true },
+    }),
+    prisma.user.findMany({
+      where: {
+        role: "REP",
+        OR: [{ name: { contains: q } }, { email: { contains: q } }],
+      },
+      orderBy: { name: "asc" },
+      take: 4,
+      select: { id: true, name: true, email: true },
+    }),
+  ]);
+  return { customers, reps };
+}
+
 // One rep: assigned customers, recent visits, recent orders.
 export async function getRepDetail(repId: string) {
   const rep = await prisma.user.findUnique({ where: { id: repId } });

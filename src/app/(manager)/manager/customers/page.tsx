@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getAllCustomers } from "@/lib/manager/queries";
 import { formatMoney } from "@/lib/money";
 
@@ -36,7 +37,9 @@ export default async function ManagerCustomersPage() {
               {rows.map((c) => (
                 <tr key={c.id}>
                   <td className={TD}>
-                    <span className="font-medium text-gray-900">{c.name}</span>{" "}
+                    <Link href={`/manager/customers/${c.id}`} className="font-medium text-gray-900 hover:text-tnm-teal-700 hover:underline">
+                      {c.name}
+                    </Link>{" "}
                     <span className="text-gray-400 text-[12px]">{c.code}</span>
                   </td>
                   <td className={TD}>{c.customerType ? (TYPE_LABELS[c.customerType] ?? c.customerType) : "—"}</td>
