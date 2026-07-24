@@ -12,10 +12,12 @@ const AGING: { key: "current" | "d1_30" | "d31_60" | "d60_plus"; label: string }
   { key: "d60_plus", label: "60+d" },
 ];
 
-// compact money for chart axis ($1.2k / $840)
+// compact VND for chart axis (1,2 tỷ / 850 tr / 90k)
 function compactMoney(n: number): string {
-  if (n >= 1000) return `$${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return `$${Math.round(n)}`;
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)} tỷ`;
+  if (n >= 1_000_000) return `${Math.round(n / 1_000_000)} tr`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
+  return `${Math.round(n)}`;
 }
 
 export default async function ManagerOverviewPage() {

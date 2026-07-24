@@ -94,6 +94,8 @@ model Customer {
   code         String   @unique
   name         String
   customerType String?
+  tier         String? // A / B / C / D — value segmentation
+  tags         String   @default("") // CSV labels e.g. "VIP,Dự án"
   phone        String?
   address      String?
   latitude     Float?
