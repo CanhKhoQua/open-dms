@@ -517,3 +517,86 @@ export async function getCadence() {
     dueTotal: dueList.length,
   };
 }
+
+// ---------- Phase 3: dashboard depth ----------
+
+// Month-to-date hero KPIs with run-rate projection and year-over-year (SPLY).
+export async function getDashboardHero() {
+  const now = new Date();
+  const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const daysInMonth = Math.round((startNextMonth.getTime() - startMonth.getTime()) / MS_DAY);
+  const dayOfMonth = now.getDate();
+  // same period last year: 1st .. same day-of-month, previous year
+  const splyStart = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+  const splyEnd = new Date(now.getFullYear() - 1, now.getMonth(), dayOfMonth, 23, 59, 59);
+
+  const [mtdOrders, splyOrders] = await Promise.all([
+    prisma.order.findMany({ where: { orderedAt: { gte: startMonth } }, select: { total: true } }),
+    prisma.order.findMany({ where: { orderedAt: { gte: splyStart, lte: splyEnd } }, select: { total: true } }),
+  ]);
+
+  const mtdRevenue = mtdOrders.reduce((s, o) => s + Number(o.total), 0);
+  const runRate = dayOfMonth > 0 ? mtdRevenue / dayOfMonth : 0;
+  const splyRevenue = splyOrders.reduce((s, o) => s + Number(o.total), 0);
+  return {
+    mtdRevenue,
+    mtdCount: mtdOrders.length,
+    runRate,
+    projected: runRate * daysInMonth,
+    splyRevenue,
+    yoyPct: splyRevenue > 0 ? Math.round(((mtdRevenue - splyRevenue) / splyRevenue) * 100) : null,
+    dayOfMonth,
+    daysInMonth,
+  };
+}
+
+const weekLabel = (start: Date, i: number) =>
+  new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(start.getTime() + i * 7 * MS_DAY));
+const weekIndex = (orderedAt: Date, start: Date) =>
+  Math.floor((startOfToday(new Date(orderedAt)).getTime() - start.getTime()) / (7 * MS_DAY));
+
+// Weekly order value for the last N weeks + 3-week moving average.
+export async function getVolumeSeries(weeks = 12) {
+  const start = new Date(startOfToday().getTime() - (weeks * 7 - 1) * MS_DAY);
+  const orders = await prisma.order.findMany({ where: { orderedAt: { gte: start } }, select: { orderedAt: true, total: true } });
+  const values = Array.from({ length: weeks }, () => 0);
+  for (const o of orders) {
+    const idx = weekIndex(o.orderedAt, start);
+    if (idx >= 0 && idx < weeks) values[idx] += Number(o.total);
+  }
+  return values.map((value, i) => ({
+    key: `w${i}`,
+    label: weekLabel(start, i),
+    value,
+    ma: Math.round((value + (values[i - 1] ?? value) + (values[i - 2] ?? value)) / 3),
+  }));
+}
+
+// Distinct ordering customers per week, last N weeks.
+export async function getActiveCustomersSeries(weeks = 12) {
+  const start = new Date(startOfToday().getTime() - (weeks * 7 - 1) * MS_DAY);
+  const orders = await prisma.order.findMany({ where: { orderedAt: { gte: start } }, select: { orderedAt: true, customerId: true } });
+  const sets = Array.from({ length: weeks }, () => new Set<string>());
+  for (const o of orders) {
+    const idx = weekIndex(o.orderedAt, start);
+    if (idx >= 0 && idx < weeks) sets[idx].add(o.customerId);
+  }
+  return sets.map((s, i) => ({ key: `w${i}`, label: weekLabel(start, i), count: s.size }));
+}
+
+// Revenue share by product over the last N days.
+export async function getProductMix(days = 90) {
+  const since = new Date(Date.now() - days * MS_DAY);
+  const lines = await prisma.orderLine.findMany({
+    where: { order: { orderedAt: { gte: since } } },
+    select: { lineTotal: true, product: { select: { name: true } } },
+  });
+  const byProduct = new Map<string, number>();
+  for (const l of lines) byProduct.set(l.product.name, (byProduct.get(l.product.name) ?? 0) + Number(l.lineTotal));
+  const total = [...byProduct.values()].reduce((s, v) => s + v, 0);
+  const rows = [...byProduct.entries()]
+    .map(([name, value]) => ({ name, value, pct: total > 0 ? Math.round((value / total) * 100) : 0 }))
+    .sort((a, b) => b.value - a.value);
+  return { rows, total };
+}

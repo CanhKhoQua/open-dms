@@ -327,6 +327,32 @@ export async function runSeed(prisma: PrismaClient) {
     data: { userId: reps[1].id, kind: "DEBT_ALERT", title: "Khách vượt hạn mức", body: "Một khách trong tuyến đã vượt hạn mức tín dụng." },
   });
 
+  // ---------- last-year orders (YoY / SPLY comparison; no invoices, no AR impact) ----------
+  for (const c of customers) {
+    const n = int(1, 4);
+    for (let o = 0; o < n; o++) {
+      const orderedAt = daysAgo(int(330, 395));
+      const pi = int(0, productSpecs.length - 1);
+      const spec = productSpecs[pi];
+      const qty = spec.unit === "tấn" ? int(2, 25) : int(20, 350);
+      const total = spec.basePrice * qty;
+      ordSeq += 1;
+      await prisma.order.create({
+        data: {
+          code: `ORD-${String(ordSeq).padStart(4, "0")}`,
+          customerId: c.id,
+          repId: c.repId,
+          status: "DELIVERED",
+          orderedAt,
+          subtotal: total,
+          total,
+          lines: { create: [{ productId: products[pi].id, quantity: qty, unitPrice: spec.basePrice, lineTotal: total }] },
+        },
+      });
+      orderCount += 1;
+    }
+  }
+
   // ---------- cadence rules + watchlist ----------
   await prisma.cadenceRule.createMany({
     data: [
