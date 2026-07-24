@@ -172,6 +172,8 @@ export async function getAllCustomers() {
     code: c.code,
     name: c.name,
     customerType: c.customerType,
+    tier: c.tier,
+    tags: c.tags,
     phone: c.phone,
     address: c.address,
     creditLimit: Number(c.creditLimit),

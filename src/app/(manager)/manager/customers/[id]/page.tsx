@@ -12,6 +12,13 @@ const TYPE_LABELS: Record<string, string> = {
   KEY_ACCOUNT: "Key account",
 };
 
+const TIER_CLASS: Record<string, string> = {
+  A: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  B: "bg-blue-50 text-blue-700 ring-blue-200",
+  C: "bg-amber-50 text-amber-700 ring-amber-200",
+  D: "bg-gray-100 text-gray-500 ring-gray-200",
+};
+
 const GPS_META: Record<string, { label: string; cls: string }> = {
   OK: { label: "GPS verified", cls: "bg-emerald-50 text-emerald-700" },
   OUT_OF_RANGE: { label: "Out of range", cls: "bg-amber-50 text-amber-700" },
@@ -43,6 +50,15 @@ export default async function ManagerCustomerDetailPage({ params }: { params: Pr
       <header className="mt-2">
         <div className="flex items-center gap-2 flex-wrap">
           <h1 className="text-[20px] font-bold tracking-tight text-gray-900">{customer.name}</h1>
+          {customer.tier && (
+            <span
+              className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold ring-1 ${
+                TIER_CLASS[customer.tier] ?? TIER_CLASS.D
+              }`}
+            >
+              {customer.tier}
+            </span>
+          )}
           {customer.customerType && (
             <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold bg-tnm-teal-50 text-tnm-teal-700">
               {TYPE_LABELS[customer.customerType] ?? customer.customerType}
@@ -60,6 +76,15 @@ export default async function ManagerCustomerDetailPage({ params }: { params: Pr
           {customer.phone ? ` · ${customer.phone}` : ""}
           {rep ? ` · Rep: ${rep.name}` : " · Unassigned"}
         </p>
+        {customer.tags && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {customer.tags.split(",").filter(Boolean).map((t) => (
+              <span key={t} className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
       </header>
 
       <div className="mt-5 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(300px,1fr))]">
