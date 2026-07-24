@@ -11,6 +11,9 @@ import {
   Users,
   CreditCard,
   MapPin,
+  Activity,
+  Target,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 import { NotificationsBell } from "./NotificationsBell";
@@ -18,29 +21,38 @@ import { GlobalSearch } from "./GlobalSearch";
 
 type ManagerHref =
   | "/manager"
+  | "/manager/today"
   | "/manager/map"
   | "/manager/customers"
   | "/manager/reps"
   | "/manager/team"
+  | "/manager/coverage"
+  | "/manager/performance"
   | "/manager/debt"
   | "/manager/visits";
 
 const RAIL_ITEMS: { href: ManagerHref; label: string; sub: string; icon: LucideIcon }[] = [
   { href: "/manager", label: "Overview", sub: "dashboard", icon: LayoutDashboard },
+  { href: "/manager/today", label: "Today", sub: "live activity", icon: Activity },
   { href: "/manager/map", label: "Map", sub: "customers", icon: MapIcon },
   { href: "/manager/customers", label: "Customers", sub: "directory", icon: Building2 },
   { href: "/manager/reps", label: "Reps", sub: "accounts", icon: UserCog },
-  { href: "/manager/team", label: "Team", sub: "coverage", icon: Users },
+  { href: "/manager/team", label: "Team", sub: "today's plan", icon: Users },
+  { href: "/manager/coverage", label: "Coverage", sub: "reach & gaps", icon: Target },
+  { href: "/manager/performance", label: "Performance", sub: "rep KPIs", icon: Gauge },
   { href: "/manager/debt", label: "Receivables", sub: "debt & aging", icon: CreditCard },
   { href: "/manager/visits", label: "Visits", sub: "check-ins", icon: MapPin },
 ];
 
 const ROUTE_META: Record<string, { title: string; subtitle: string }> = {
   "/manager": { title: "Overview", subtitle: "Company-wide sales & receivables" },
+  "/manager/today": { title: "Today", subtitle: "Live field activity across the team" },
   "/manager/map": { title: "Customer map", subtitle: "All customers · pins colored by status" },
   "/manager/customers": { title: "Customers", subtitle: "Company-wide directory" },
   "/manager/reps": { title: "Reps", subtitle: "Accounts & assignment counts" },
-  "/manager/team": { title: "Team coverage", subtitle: "Planned vs. visited, by rep" },
+  "/manager/team": { title: "Team", subtitle: "Today's plan · visited vs. planned, by rep" },
+  "/manager/coverage": { title: "Coverage", subtitle: "Assigned customers reached in the last 30 days" },
+  "/manager/performance": { title: "Performance", subtitle: "Rep KPIs over the last 30 days" },
   "/manager/debt": { title: "Receivables", subtitle: "Outstanding · overdue · over credit limit" },
   "/manager/visits": { title: "Visits", subtitle: "Recent check-ins across the team" },
   "/manager/notifications": { title: "Notifications", subtitle: "Alerts for your account" },

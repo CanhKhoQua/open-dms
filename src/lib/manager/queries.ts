@@ -299,3 +299,101 @@ export async function getRepDetail(repId: string) {
   ]);
   return { rep, customers: assignments.map((a) => a.customer), recentVisits, recentOrders };
 }
+
+// ---------- Phase 2: performance / coverage / today ----------
+
+const MS_DAY = 24 * 60 * 60 * 1000;
+
+// Per-rep KPIs over a rolling window (default 30 days).
+export async function getRepPerformance(days = 30) {
+  const since = new Date(Date.now() - days * MS_DAY);
+  const [reps, assignments, visits, orders, payments] = await Promise.all([
+    prisma.user.findMany({ where: { role: "REP" }, orderBy: { name: "asc" } }),
+    prisma.repAssignment.findMany({ select: { repId: true } }),
+    prisma.visit.findMany({ where: { checkInAt: { gte: since } }, select: { repId: true, customerId: true, gpsStatus: true } }),
+    prisma.order.findMany({ where: { orderedAt: { gte: since } }, select: { repId: true, total: true } }),
+    prisma.payment.findMany({ where: { receivedAt: { gte: since } }, select: { repId: true, amount: true } }),
+  ]);
+  const assignedBy = new Map<string, number>();
+  for (const a of assignments) assignedBy.set(a.repId, (assignedBy.get(a.repId) ?? 0) + 1);
+
+  return reps.map((rep) => {
+    const myVisits = visits.filter((v) => v.repId === rep.id);
+    const myOrders = orders.filter((o) => o.repId === rep.id);
+    const gpsOk = myVisits.filter((v) => v.gpsStatus === "OK").length;
+    return {
+      repId: rep.id,
+      name: rep.name,
+      assigned: assignedBy.get(rep.id) ?? 0,
+      visits: myVisits.length,
+      uniqueCustomers: new Set(myVisits.map((v) => v.customerId)).size,
+      gpsRate: myVisits.length ? Math.round((gpsOk / myVisits.length) * 100) : 0,
+      orders: myOrders.length,
+      orderValue: myOrders.reduce((s, o) => s + Number(o.total), 0),
+      collected: payments.filter((p) => p.repId === rep.id).reduce((s, p) => s + Number(p.amount), 0),
+    };
+  });
+}
+
+// Territory coverage: how many assigned customers each rep actually reached
+// (>=1 visit) within the window.
+export async function getCoverage(days = 30) {
+  const since = new Date(Date.now() - days * MS_DAY);
+  const [reps, assignments, visits] = await Promise.all([
+    prisma.user.findMany({ where: { role: "REP" }, orderBy: { name: "asc" } }),
+    prisma.repAssignment.findMany({ select: { repId: true, customerId: true } }),
+    prisma.visit.findMany({ where: { checkInAt: { gte: since } }, select: { repId: true, customerId: true } }),
+  ]);
+  const rows = reps.map((rep) => {
+    const mine = assignments.filter((a) => a.repId === rep.id);
+    const visited = new Set(visits.filter((v) => v.repId === rep.id).map((v) => v.customerId));
+    const covered = mine.filter((a) => visited.has(a.customerId)).length;
+    return {
+      repId: rep.id,
+      name: rep.name,
+      assigned: mine.length,
+      covered,
+      uncovered: mine.length - covered,
+      coveragePct: mine.length ? Math.round((covered / mine.length) * 100) : 0,
+    };
+  });
+  const totalAssigned = rows.reduce((s, r) => s + r.assigned, 0);
+  const totalCovered = rows.reduce((s, r) => s + r.covered, 0);
+  const overallPct = totalAssigned ? Math.round((totalCovered / totalAssigned) * 100) : 0;
+  return { rows, totalAssigned, totalCovered, overallPct, days };
+}
+
+export type TodayEvent = {
+  id: string;
+  kind: "visit" | "order" | "payment";
+  at: Date;
+  rep: string;
+  customer: string;
+  label: string;
+  amount: number | null;
+};
+
+// Live-ish activity feed for the current day (polled, not streamed).
+export async function getTodayActivity() {
+  const today = startOfToday();
+  const [visits, orders, payments, shifts] = await Promise.all([
+    prisma.visit.findMany({ where: { checkInAt: { gte: today } }, orderBy: { checkInAt: "desc" }, include: { customer: true, rep: true }, take: 40 }),
+    prisma.order.findMany({ where: { orderedAt: { gte: today } }, orderBy: { orderedAt: "desc" }, include: { customer: true, rep: true }, take: 40 }),
+    prisma.payment.findMany({ where: { receivedAt: { gte: today } }, orderBy: { receivedAt: "desc" }, include: { customer: true, rep: true }, take: 40 }),
+    prisma.shift.findMany({ where: { startedAt: { gte: today }, endedAt: null }, include: { rep: true } }),
+  ]);
+  const events: TodayEvent[] = [
+    ...visits.map((v) => ({ id: `v${v.id}`, kind: "visit" as const, at: v.checkInAt, rep: v.rep.name, customer: v.customer.name, label: v.outcome ?? v.gpsStatus, amount: null })),
+    ...orders.map((o) => ({ id: `o${o.id}`, kind: "order" as const, at: o.orderedAt, rep: o.rep.name, customer: o.customer.name, label: o.code, amount: Number(o.total) })),
+    ...payments.map((p) => ({ id: `p${p.id}`, kind: "payment" as const, at: p.receivedAt, rep: p.rep?.name ?? "—", customer: p.customer.name, label: "Payment", amount: Number(p.amount) })),
+  ].sort((a, b) => b.at.getTime() - a.at.getTime());
+
+  return {
+    onDuty: shifts.map((s) => ({ repId: s.repId, name: s.rep.name, startedAt: s.startedAt })),
+    visitCount: visits.length,
+    orderCount: orders.length,
+    orderValue: orders.reduce((s, o) => s + Number(o.total), 0),
+    collected: payments.reduce((s, p) => s + Number(p.amount), 0),
+    events: events.slice(0, 50),
+  };
+}
