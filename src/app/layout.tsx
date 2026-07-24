@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, IBM_Plex_Mono } from "next/font/google";
+import { Be_Vietnam_Pro, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
 // App-wide type system, wired through the --font-sans / --font-mono CSS vars
 // that tailwind.config.ts maps font-sans / font-mono to.
-const fontSans = Inter({
-  subsets: ["latin"],
+const fontSans = Be_Vietnam_Pro({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
   display: "swap",
 });
