@@ -397,3 +397,47 @@ export async function getTodayActivity() {
     events: events.slice(0, 50),
   };
 }
+
+// Attendance matrix: shifts per rep across the last `days` calendar days.
+export async function getTimesheet(days = 14) {
+  const dayKey = (d: Date) => new Date(d).toLocaleDateString("en-CA"); // local YYYY-MM-DD
+  const today = startOfToday();
+  const start = new Date(today.getTime() - (days - 1) * MS_DAY);
+
+  const [reps, shifts] = await Promise.all([
+    prisma.user.findMany({ where: { role: "REP" }, orderBy: { name: "asc" } }),
+    prisma.shift.findMany({ where: { startedAt: { gte: start } }, select: { repId: true, startedAt: true, endedAt: true } }),
+  ]);
+
+  const columns = Array.from({ length: days }, (_, i) => {
+    const d = new Date(start.getTime() + i * MS_DAY);
+    return {
+      key: dayKey(d),
+      dow: new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(d),
+      day: d.getDate(),
+      isSunday: d.getDay() === 0,
+    };
+  });
+
+  const rows = reps.map((rep) => {
+    const cells = columns.map((col) => {
+      const dayShifts = shifts.filter((s) => s.repId === rep.id && dayKey(s.startedAt) === col.key);
+      if (dayShifts.length === 0) return { key: col.key, worked: false, hours: 0, active: false };
+      const active = dayShifts.some((s) => !s.endedAt);
+      const hours = dayShifts.reduce((h, s) => {
+        const end = s.endedAt ? s.endedAt.getTime() : Date.now();
+        return h + Math.max(0, end - s.startedAt.getTime()) / 3_600_000;
+      }, 0);
+      return { key: col.key, worked: true, hours: Math.round(hours * 10) / 10, active };
+    });
+    return {
+      repId: rep.id,
+      name: rep.name,
+      cells,
+      daysWorked: cells.filter((c) => c.worked).length,
+      totalHours: Math.round(cells.reduce((h, c) => h + c.hours, 0) * 10) / 10,
+    };
+  });
+
+  return { columns, rows, days };
+}

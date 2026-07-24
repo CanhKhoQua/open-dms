@@ -14,6 +14,7 @@ import {
   Activity,
   Target,
   Gauge,
+  CalendarClock,
   type LucideIcon,
 } from "lucide-react";
 import { NotificationsBell } from "./NotificationsBell";
@@ -28,6 +29,7 @@ type ManagerHref =
   | "/manager/team"
   | "/manager/coverage"
   | "/manager/performance"
+  | "/manager/timesheet"
   | "/manager/debt"
   | "/manager/visits";
 
@@ -40,6 +42,7 @@ const RAIL_ITEMS: { href: ManagerHref; label: string; sub: string; icon: LucideI
   { href: "/manager/team", label: "Team", sub: "today's plan", icon: Users },
   { href: "/manager/coverage", label: "Coverage", sub: "reach & gaps", icon: Target },
   { href: "/manager/performance", label: "Performance", sub: "rep KPIs", icon: Gauge },
+  { href: "/manager/timesheet", label: "Timesheet", sub: "attendance", icon: CalendarClock },
   { href: "/manager/debt", label: "Receivables", sub: "debt & aging", icon: CreditCard },
   { href: "/manager/visits", label: "Visits", sub: "check-ins", icon: MapPin },
 ];
@@ -53,6 +56,7 @@ const ROUTE_META: Record<string, { title: string; subtitle: string }> = {
   "/manager/team": { title: "Team", subtitle: "Today's plan · visited vs. planned, by rep" },
   "/manager/coverage": { title: "Coverage", subtitle: "Assigned customers reached in the last 30 days" },
   "/manager/performance": { title: "Performance", subtitle: "Rep KPIs over the last 30 days" },
+  "/manager/timesheet": { title: "Timesheet", subtitle: "Shift attendance over the last 14 days" },
   "/manager/debt": { title: "Receivables", subtitle: "Outstanding · overdue · over credit limit" },
   "/manager/visits": { title: "Visits", subtitle: "Recent check-ins across the team" },
   "/manager/notifications": { title: "Notifications", subtitle: "Alerts for your account" },

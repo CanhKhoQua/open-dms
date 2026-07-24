@@ -289,14 +289,24 @@ export async function runSeed(prisma: PrismaClient) {
     }
   }
 
-  // ---------- shifts ----------
-  for (let i = 0; i < 3; i++) {
-    await prisma.shift.create({ data: { repId: reps[i].id, startedAt: new Date(now.getTime() - int(1, 5) * 60 * 60 * 1000) } });
-  }
-  for (let d = 1; d <= 4; d++) {
-    await prisma.shift.create({
-      data: { repId: reps[d % reps.length].id, startedAt: daysAgo(d), endedAt: new Date(daysAgo(d).getTime() + 8 * 60 * 60 * 1000) },
-    });
+  // ---------- shifts (attendance matrix over ~20 days) ----------
+  for (let ri = 0; ri < reps.length; ri++) {
+    for (let d = 20; d >= 0; d--) {
+      const day = daysAgo(d);
+      if (day.getDay() === 0) continue; // no Sunday work
+      if (rng() < 0.15) continue; // ~15% absence
+      if (d === 0 && ri < 3) {
+        // still on duty today (open shift)
+        await prisma.shift.create({ data: { repId: reps[ri].id, startedAt: new Date(now.getTime() - int(1, 5) * 60 * 60 * 1000) } });
+        continue;
+      }
+      const start = new Date(day);
+      start.setHours(7, int(30, 59), 0, 0);
+      const hours = 7.5 + rng() * 2;
+      await prisma.shift.create({
+        data: { repId: reps[ri].id, startedAt: start, endedAt: new Date(start.getTime() + hours * 3600000) },
+      });
+    }
   }
 
   // ---------- notifications ----------
