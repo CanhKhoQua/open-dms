@@ -15,6 +15,8 @@ import {
   Target,
   Gauge,
   CalendarClock,
+  Eye,
+  Repeat,
   type LucideIcon,
 } from "lucide-react";
 import { NotificationsBell } from "./NotificationsBell";
@@ -30,6 +32,8 @@ type ManagerHref =
   | "/manager/coverage"
   | "/manager/performance"
   | "/manager/timesheet"
+  | "/manager/watchlist"
+  | "/manager/cadence"
   | "/manager/debt"
   | "/manager/visits";
 
@@ -43,6 +47,8 @@ const RAIL_ITEMS: { href: ManagerHref; label: string; sub: string; icon: LucideI
   { href: "/manager/coverage", label: "Coverage", sub: "reach & gaps", icon: Target },
   { href: "/manager/performance", label: "Performance", sub: "rep KPIs", icon: Gauge },
   { href: "/manager/timesheet", label: "Timesheet", sub: "attendance", icon: CalendarClock },
+  { href: "/manager/watchlist", label: "Watchlist", sub: "flagged customers", icon: Eye },
+  { href: "/manager/cadence", label: "Cadence", sub: "visit rules", icon: Repeat },
   { href: "/manager/debt", label: "Receivables", sub: "debt & aging", icon: CreditCard },
   { href: "/manager/visits", label: "Visits", sub: "check-ins", icon: MapPin },
 ];
@@ -57,6 +63,8 @@ const ROUTE_META: Record<string, { title: string; subtitle: string }> = {
   "/manager/coverage": { title: "Coverage", subtitle: "Assigned customers reached in the last 30 days" },
   "/manager/performance": { title: "Performance", subtitle: "Rep KPIs over the last 30 days" },
   "/manager/timesheet": { title: "Timesheet", subtitle: "Shift attendance over the last 14 days" },
+  "/manager/watchlist": { title: "Watchlist", subtitle: "Customers you flagged to keep an eye on" },
+  "/manager/cadence": { title: "Cadence rules", subtitle: "Visit frequency by tier · customers due now" },
   "/manager/debt": { title: "Receivables", subtitle: "Outstanding · overdue · over credit limit" },
   "/manager/visits": { title: "Visits", subtitle: "Recent check-ins across the team" },
   "/manager/notifications": { title: "Notifications", subtitle: "Alerts for your account" },

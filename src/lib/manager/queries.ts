@@ -441,3 +441,79 @@ export async function getTimesheet(days = 14) {
 
   return { columns, rows, days };
 }
+
+// Manager's flagged customers, with the stats that make them worth watching.
+export async function getWatchlist() {
+  const watched = await prisma.watchedCustomer.findMany({
+    orderBy: { createdAt: "asc" },
+    include: {
+      customer: {
+        include: {
+          invoices: { where: { status: { notIn: ["PAID", "VOID"] } }, select: { id: true, dueDate: true, amount: true, paidAmount: true } },
+          visits: { orderBy: { checkInAt: "desc" }, take: 1, select: { checkInAt: true } },
+        },
+      },
+    },
+  });
+  const now = Date.now();
+  return watched.map((w) => {
+    const c = w.customer;
+    const { summary } = ageInvoices(toAgingInput(c.invoices));
+    const creditLimit = Number(c.creditLimit);
+    const lastVisit = c.visits[0]?.checkInAt ?? null;
+    return {
+      id: w.id,
+      customerId: c.id,
+      code: c.code,
+      name: c.name,
+      tier: c.tier,
+      reason: w.reason,
+      outstanding: summary.total,
+      overdue: summary.d1_30 + summary.d31_60 + summary.d60_plus,
+      overLimit: creditLimit > 0 && summary.total > creditLimit,
+      lastVisit,
+      daysSince: lastVisit ? Math.floor((now - new Date(lastVisit).getTime()) / MS_DAY) : null,
+    };
+  });
+}
+
+// Visit-cadence policy + which customers are due/overdue against their tier rule.
+export async function getCadence() {
+  const [rules, customers] = await Promise.all([
+    prisma.cadenceRule.findMany({ orderBy: { intervalDays: "asc" } }),
+    prisma.customer.findMany({
+      where: { active: true },
+      select: { id: true, code: true, name: true, tier: true, visits: { orderBy: { checkInAt: "desc" }, take: 1, select: { checkInAt: true } } },
+    }),
+  ]);
+  const ruleByTier = new Map(rules.map((r) => [r.tier, r.intervalDays]));
+  const now = Date.now();
+  const perTier: Record<string, { total: number; due: number }> = {};
+  const dueList: { code: string; name: string; tier: string; daysSince: number | null; interval: number; over: number }[] = [];
+
+  for (const c of customers) {
+    const tier = c.tier ?? "C";
+    const interval = ruleByTier.get(tier) ?? 14;
+    perTier[tier] ||= { total: 0, due: 0 };
+    perTier[tier].total += 1;
+    const last = c.visits[0]?.checkInAt ?? null;
+    const daysSince = last ? Math.floor((now - new Date(last).getTime()) / MS_DAY) : null;
+    if (daysSince == null || daysSince > interval) {
+      perTier[tier].due += 1;
+      dueList.push({ code: c.code, name: c.name, tier, daysSince, interval, over: daysSince == null ? 9999 : daysSince - interval });
+    }
+  }
+  dueList.sort((a, b) => b.over - a.over);
+
+  return {
+    rules: rules.map((r) => ({
+      tier: r.tier,
+      intervalDays: r.intervalDays,
+      label: r.label,
+      total: perTier[r.tier]?.total ?? 0,
+      due: perTier[r.tier]?.due ?? 0,
+    })),
+    dueList: dueList.slice(0, 40),
+    dueTotal: dueList.length,
+  };
+}

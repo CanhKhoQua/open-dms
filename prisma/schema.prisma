@@ -85,6 +85,7 @@ model User {
   payments          Payment[]
   notifications     Notification[]
   pushSubscriptions PushSubscription[]
+  watchlist         WatchedCustomer[]
 }
 
 // ---------- master data ----------
@@ -110,6 +111,7 @@ model Customer {
   orders      Order[]
   invoices    Invoice[]
   payments    Payment[]
+  watchers    WatchedCustomer[]
 }
 
 model Product {
@@ -311,4 +313,29 @@ model PushSubscription {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------- manager tooling ----------
+
+// Customers a manager flags to keep an eye on.
+model WatchedCustomer {
+  id         String   @id @default(uuid())
+  userId     String
+  customerId String
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, customerId])
+}
+
+// Visit-frequency policy per customer tier (A/B/C/D).
+model CadenceRule {
+  id           String  @id @default(uuid())
+  tier         String  @unique // A / B / C / D
+  intervalDays Int
+  label        String
+  active       Boolean @default(true)
 }

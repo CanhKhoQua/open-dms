@@ -49,6 +49,8 @@ export async function runSeed(prisma: PrismaClient) {
   await prisma.promotion.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.pushSubscription.deleteMany();
+  await prisma.watchedCustomer.deleteMany();
+  await prisma.cadenceRule.deleteMany();
   await prisma.product.deleteMany();
   await prisma.customer.deleteMany();
   await prisma.user.deleteMany();
@@ -324,6 +326,24 @@ export async function runSeed(prisma: PrismaClient) {
   await prisma.notification.create({
     data: { userId: reps[1].id, kind: "DEBT_ALERT", title: "Khách vượt hạn mức", body: "Một khách trong tuyến đã vượt hạn mức tín dụng." },
   });
+
+  // ---------- cadence rules + watchlist ----------
+  await prisma.cadenceRule.createMany({
+    data: [
+      { tier: "A", intervalDays: 5, label: "Key accounts — visit weekly" },
+      { tier: "B", intervalDays: 7, label: "Wholesale — visit weekly" },
+      { tier: "C", intervalDays: 14, label: "Standard — biweekly" },
+      { tier: "D", intervalDays: 30, label: "Retail — monthly" },
+    ],
+  });
+
+  const watchReasons = ["Công nợ cao", "Vượt hạn mức", "Khách VIP cần chăm", "Sản lượng giảm", "Lâu chưa ghé"];
+  const watched = customers.filter((c) => c.tier === "A" || c.tier === "D").slice(0, 8);
+  for (let i = 0; i < watched.length; i++) {
+    await prisma.watchedCustomer.create({
+      data: { userId: manager.id, customerId: watched[i].id, reason: watchReasons[i % watchReasons.length] },
+    });
+  }
 
   return {
     reps: reps.length,
